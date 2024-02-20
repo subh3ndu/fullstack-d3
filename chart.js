@@ -201,124 +201,141 @@ async function drawBars() {
   const data = await d3.json('/my_weather_data.json')
   console.table(data[0])
 
-  const xAccessor = d => d['humidity']
-  const yAccessor = d => d.length
-  //#endregion
+  const drawHistogram = (metric) => {
+    const xAccessor = d => d[metric]
+    const yAccessor = d => d.length
+    //#endregion
 
-  //#region 2. Create Chart dimensions
-  const width = 600;
-  const dimensions = {
-    width,
-    height: width * 0.6,
-    margins: {
-      top: 30,
-      right: 10,
-      bottom: 50,
-      left: 50,
+    //#region 2. Create Chart dimensions
+    const width = 600;
+    const dimensions = {
+      width,
+      height: width * 0.6,
+      margins: {
+        top: 30,
+        right: 10,
+        bottom: 50,
+        left: 50,
+      }
     }
-  }
 
-  dimensions.boundedWidth = dimensions.width - dimensions.margins.left - dimensions.margins.right;
-  dimensions.boundedHeight = dimensions.height - dimensions.margins.top - dimensions.margins.bottom;
-  //#endregion
+    dimensions.boundedWidth = dimensions.width - dimensions.margins.left - dimensions.margins.right;
+    dimensions.boundedHeight = dimensions.height - dimensions.margins.top - dimensions.margins.bottom;
+    //#endregion
 
-  //#region 3. Draw Canvas
-  const wrapper = d3.select('#wrapper')
-    .append('svg')
-      .attr('width', dimensions.width)
-      .attr('height', dimensions.height);
+    //#region 3. Draw Canvas
+    const wrapper = d3.select('#wrapper')
+      .append('svg')
+        .attr('width', dimensions.width)
+        .attr('height', dimensions.height);
 
-  const bounds = wrapper
-    .append('g')
-      .style('transform', `translate(${
-        dimensions.margins.left
-      }px, ${
-        dimensions.margins.top
-      }px)`)
-  //#endregion
+    const bounds = wrapper
+      .append('g')
+        .style('transform', `translate(${
+          dimensions.margins.left
+        }px, ${
+          dimensions.margins.top
+        }px)`)
+    //#endregion
 
-  //#region 4. Create Scales
-  const xScale = d3.scaleLinear()
-    .domain(d3.extent(data, xAccessor))
-    .range([0, dimensions.boundedWidth])
-    .nice()
+    //#region 4. Create Scales
+    const xScale = d3.scaleLinear()
+      .domain(d3.extent(data, xAccessor))
+      .range([0, dimensions.boundedWidth])
+      .nice()
 
-  const binGenerator = d3.bin()
-    .domain(xScale.domain())
-    .value(xAccessor)
-    .thresholds(12);
+    const binGenerator = d3.bin()
+      .domain(xScale.domain())
+      .value(xAccessor)
+      .thresholds(12);
 
-  const bins = binGenerator(data);
+    const bins = binGenerator(data);
 
-  const yScale = d3.scaleLinear()
-    .domain([0, d3.max(bins, yAccessor)])
-    .range([dimensions.boundedHeight, 0])
-    .nice()
-  //#endregion
+    const yScale = d3.scaleLinear()
+      .domain([0, d3.max(bins, yAccessor)])
+      .range([dimensions.boundedHeight, 0])
+      .nice()
+    //#endregion
 
-  //#region 5. Draw Marks
-  const barPadding = 1;
+    //#region 5. Draw Marks
+    const barPadding = 1;
 
-  const binsGroup = bounds.append('g');
-  const binGroups = binsGroup.selectAll('g')
-    .data(bins)
-    .join('g')
+    const binsGroup = bounds.append('g');
+    const binGroups = binsGroup.selectAll('g')
+      .data(bins)
+      .join('g')
 
-  const barRects = binGroups.append('rect')
-    .attr('x', d => xScale(d.x0) + barPadding / 2)
-    .attr('y', d => yScale(yAccessor(d)))
-    .attr('width', d => d3.max([0, xScale(d.x1) - xScale(d.x0) - barPadding]))
-    .attr('height', d => dimensions.boundedHeight - yScale(yAccessor(d)))
-    .attr('fill', 'cornflowerblue')
+    const barRects = binGroups.append('rect')
+      .attr('x', d => xScale(d.x0) + barPadding / 2)
+      .attr('y', d => yScale(yAccessor(d)))
+      .attr('width', d => d3.max([0, xScale(d.x1) - xScale(d.x0) - barPadding]))
+      .attr('height', d => dimensions.boundedHeight - yScale(yAccessor(d)))
+      .attr('fill', 'cornflowerblue')
 
-  const barText = binGroups.filter(yAccessor)
-    .append('text')
-      .attr('x', d => xScale(d.x0) + (
-        xScale(d.x1) - xScale(d.x0)
-      )/2)
-      .attr('y', d => yScale(yAccessor(d) + 2))
-    .text(yAccessor)
-      .style('fill', '#888')
-      .style('text-anchor', 'middle')
-      .style('font-family', 'sans-serif')
-      .style('font-size', '12px')
-
-  //#endregion
-
-  //#region 6. Draw Peripherals
-  const mean = d3.mean(data, xAccessor);
-
-  const meanLine = bounds.append('line')
-    .attr('x1', xScale(mean))
-    .attr('x2', xScale(mean))
-    .attr('y1', -15)
-    .attr('y2', dimensions.boundedHeight)
-    .attr('stroke', 'maroon')
-    .style('stroke-dasharray', '2px 4px');
-
-  const meanLabel = bounds.append('text')
-    .attr('x', xScale(mean))
-    .attr('y', -20)
-    .text('mean')
+    const barText = binGroups.filter(yAccessor)
+      .append('text')
+        .attr('x', d => xScale(d.x0) + (
+          xScale(d.x1) - xScale(d.x0)
+        )/2)
+        .attr('y', d => yScale(yAccessor(d) + 2))
+      .text(yAccessor)
+        .style('fill', '#888')
+        .style('text-anchor', 'middle')
         .style('font-family', 'sans-serif')
         .style('font-size', '12px')
-        .style('fill', 'maroon')
-        .style('text-anchor', 'middle');
 
-  const xAxisGenerator = d3.axisBottom().scale(xScale);
-  const xAxis = bounds.append('g').call(xAxisGenerator).style('transform', `translateY(${dimensions.boundedHeight}px)`)
-  const xAxisLabel = bounds.append('text')
-    .text('Humidity')
-      .attr('x', dimensions.boundedWidth / 2)
-      .attr('y', dimensions.boundedHeight + 35)
-      .style('font-family', 'sans-serif')
-      .style('font-size', '1em')
-      .style('text-anchor', 'middle');
-  //#endregion
+    //#endregion
 
-  //#region 7. Setup Interactions
+    //#region 6. Draw Peripherals
+    const mean = d3.mean(data, xAccessor);
 
-  //#endregion
+    const meanLine = bounds.append('line')
+      .attr('x1', xScale(mean))
+      .attr('x2', xScale(mean))
+      .attr('y1', -15)
+      .attr('y2', dimensions.boundedHeight)
+      .attr('stroke', 'maroon')
+      .style('stroke-dasharray', '2px 4px');
+
+    const meanLabel = bounds.append('text')
+      .attr('x', xScale(mean))
+      .attr('y', -20)
+      .text('mean')
+          .style('font-family', 'sans-serif')
+          .style('font-size', '12px')
+          .style('fill', 'maroon')
+          .style('text-anchor', 'middle');
+
+    const xAxisGenerator = d3.axisBottom().scale(xScale);
+    const xAxis = bounds.append('g').call(xAxisGenerator).style('transform', `translateY(${dimensions.boundedHeight}px)`)
+    const xAxisLabel = bounds.append('text')
+      .text(metric)
+        .attr('x', dimensions.boundedWidth / 2)
+        .attr('y', dimensions.boundedHeight + 35)
+        .style('font-family', 'sans-serif')
+        .style('font-size', '1em')
+        .style('text-anchor', 'middle')
+        .style('text-transform', 'capitalize')
+    //#endregion
+  }
+
+  const metrics = [
+    'windSpeed',
+    'moonPhase',
+    'dewPoint',
+    'humidity',
+    'uvIndex',
+    'windBearing',
+    'temperatureMin',
+    'temperatureMax',
+    'visibility',
+    'cloudCover',
+  ];
+
+  metrics.forEach(metric => drawHistogram(metric))
+
+
+  drawHistogram('moonPhase')
 }
 
 drawBars();
