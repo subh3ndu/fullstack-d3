@@ -201,10 +201,11 @@ async function drawBars() {
   const data = await d3.json('/my_weather_data.json')
   console.table(data[0])
 
+  //#endregion
+
   const drawHistogram = (metric) => {
     const xAccessor = d => d[metric]
     const yAccessor = d => d.length
-    //#endregion
 
     //#region 2. Create Chart dimensions
     const width = 600;
@@ -319,6 +320,7 @@ async function drawBars() {
     //#endregion
   }
 
+  //#region Extra
   const metrics = [
     'windSpeed',
     'moonPhase',
@@ -333,9 +335,7 @@ async function drawBars() {
   ];
 
   metrics.forEach(metric => drawHistogram(metric))
-
-
-  drawHistogram('moonPhase')
+  //#endregion
 }
 
 drawBars();
