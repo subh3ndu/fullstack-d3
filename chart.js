@@ -1,132 +1,45 @@
-import * as d3 from "d3";
+import * as d3 from 'd3';
 
-async function drawLineChart() {
+async function createEvent() {
+  const rectColors = [
+    'yellowgreen',
+    'cornflowerblue',
+    'seagreen',
+    'slateblue',
+  ]
 
-  // 1. Access data
-  let dataset = await d3.json("./my_weather_data.json")
+  const rects = d3.select('#svg')
+    .append('svg')
+      .attr('width', window.innerWidth)
+      .attr('height', window.innerHeight)
+    .selectAll('.rect')
+    .data(rectColors)
+    .join('rect')
+      .attr('width', 100)
+      .attr('height', 100)
+      .attr('x', (d, i) => i * 110)
+      .attr('y', 10)
+      .attr('fill', 'lightGray')
 
-  // 2. Create chart dimensions
+  rects.on('mouseenter', (e, d) => {
+    const selection = d3.select(e.currentTarget);
+    selection.attr('fill', d => d)
+  })
 
-  const yAccessor = d => d.temperatureMax
-  const dateParser = d3.timeParse("%Y-%m-%d")
-  const xAccessor = d => dateParser(d.date)
-  dataset = dataset.sort((a,b) => xAccessor(a) - xAccessor(b)).slice(0, 100)
+  rects.on('mouseleave', (e, d) => {
+    const selection = d3.select(e.currentTarget)
+    selection.attr('fill', 'lightGray')
+  })
 
-  let dimensions = {
-    width: window.innerWidth * 0.9,
-    height: 400,
-    margin: {
-      top: 15,
-      right: 15,
-      bottom: 40,
-      left: 60,
-    },
-  }
-  dimensions.boundedWidth = dimensions.width - dimensions.margin.left - dimensions.margin.right
-  dimensions.boundedHeight = dimensions.height - dimensions.margin.top - dimensions.margin.bottom
+  setTimeout(() => {
+    console.log('hi')
 
-  // 3. Draw canvas
+    rects.dispatch('mouseleave')
 
-  const wrapper = d3.select("#wrapper")
-    .append("svg")
-      .attr("width", dimensions.width)
-      .attr("height", dimensions.height)
+    rects.on('mouseenter', null);
+    rects.on('mouseleave', null);
 
-  const bounds = wrapper.append("g")
-      .style("transform", `translate(${dimensions.margin.left}px, ${dimensions.margin.top}px)`)
-
-  const clipPath = bounds
-    .append("defs")
-    .append('clipPath')
-      .attr('id', "bounds-clip-path")
-    .append('rect')
-      .attr('width', dimensions.boundedWidth)
-      .attr('height', dimensions.boundedHeight)
-
-  // init static elements
-  bounds.append("rect")
-      .attr("class", "freezing")
-  const clip = bounds.append('g').attr('clip-path', "url(#bounds-clip-path)")
-  bounds.append("path")
-      .attr("class", "line")
-  bounds.append("g")
-      .attr("class", "x-axis")
-      .style("transform", `translateY(${dimensions.boundedHeight}px)`)
-  bounds.append("g")
-      .attr("class", "y-axis")
-
-  const drawLine = (dataset) => {
-
-    // 4. Create scales
-
-    const yScale = d3.scaleLinear()
-      .domain(d3.extent(dataset, yAccessor))
-      .range([dimensions.boundedHeight, 0])
-
-    const freezingTemperaturePlacement = yScale(32)
-    const freezingTemperatures = bounds.select(".freezing")
-        .attr("x", 0)
-        .attr("width", dimensions.boundedWidth)
-        .attr("y", freezingTemperaturePlacement)
-        .attr("height", dimensions.boundedHeight - freezingTemperaturePlacement)
-
-    const xScale = d3.scaleTime()
-      .domain(d3.extent(dataset, xAccessor))
-      .range([0, dimensions.boundedWidth])
-
-    // 5. Draw data
-
-    const lineGenerator = d3.line()
-      .x(d => xScale(xAccessor(d)))
-      .y(d => yScale(yAccessor(d)))
-
-    const lastTwoPoints = dataset.slice(-2);
-    const pixelsBetweenLastPoints = 
-      xScale(xAccessor(lastTwoPoints[1])) 
-      - xScale(xAccessor(lastTwoPoints[0]))
-
-    const line = bounds.select(".line")
-        .attr("d", lineGenerator(dataset))
-        .style('transform', `translateX(${
-          pixelsBetweenLastPoints
-        }px)`)
-        .transition()
-        .style('transform', `none`)
-
-    // 6. Draw peripherals
-
-    const yAxisGenerator = d3.axisLeft()
-      .scale(yScale)
-
-    const yAxis = bounds.select(".y-axis")
-      .call(yAxisGenerator)
-
-    const xAxisGenerator = d3.axisBottom()
-      .scale(xScale)
-
-    const xAxis = bounds.select(".x-axis")
-      .call(xAxisGenerator)
-  }
-  drawLine(dataset)
-
-  // update the line every 1.5 seconds
-  setInterval(addNewDay, 1500)
-  function addNewDay() {
-    dataset = [
-      ...dataset.slice(1),
-      generateNewDataPoint(dataset)
-    ]
-    drawLine(dataset)
-  }
-
-  function generateNewDataPoint(dataset) {
-    const lastDataPoint = dataset[dataset.length - 1]
-    const nextDay = d3.timeDay.offset(xAccessor(lastDataPoint), 1)
-
-    return {
-      date: d3.timeFormat("%Y-%m-%d")(nextDay),
-      temperatureMax: yAccessor(lastDataPoint) + (Math.random() * 6 - 3),
-    }
-  }
+  }, 3000);
 }
-drawLineChart()
+
+createEvent();
