@@ -1,21 +1,25 @@
 import * as d3 from "d3";
 
-async function drawBars() {
+async function drawLineChart() {
 
   // 1. Access data
-  const dataset = await d3.json("./my_weather_data.json")
+  let dataset = await d3.json("./my_weather_data.json")
 
   // 2. Create chart dimensions
 
-  const width = 500
+  const yAccessor = d => d.temperatureMax
+  const dateParser = d3.timeParse("%Y-%m-%d")
+  const xAccessor = d => dateParser(d.date)
+  dataset = dataset.sort((a,b) => xAccessor(a) - xAccessor(b)).slice(0, 100)
+
   let dimensions = {
-    width: width,
-    height: width * 0.6,
+    width: window.innerWidth * 0.9,
+    height: 400,
     margin: {
-      top: 30,
-      right: 10,
-      bottom: 50,
-      left: 50,
+      top: 15,
+      right: 15,
+      bottom: 40,
+      left: 60,
     },
   }
   dimensions.boundedWidth = dimensions.width - dimensions.margin.left - dimensions.margin.right
@@ -31,159 +35,98 @@ async function drawBars() {
   const bounds = wrapper.append("g")
       .style("transform", `translate(${dimensions.margin.left}px, ${dimensions.margin.top}px)`)
 
+  const clipPath = bounds
+    .append("defs")
+    .append('clipPath')
+      .attr('id', "bounds-clip-path")
+    .append('rect')
+      .attr('width', dimensions.boundedWidth)
+      .attr('height', dimensions.boundedHeight)
+
   // init static elements
-  bounds.append("g")
-      .attr("class", "bins")
-  bounds.append("line")
-      .attr("class", "mean")
+  bounds.append("rect")
+      .attr("class", "freezing")
+  const clip = bounds.append('g').attr('clip-path', "url(#bounds-clip-path)")
+  bounds.append("path")
+      .attr("class", "line")
   bounds.append("g")
       .attr("class", "x-axis")
       .style("transform", `translateY(${dimensions.boundedHeight}px)`)
-    .append("text")
-      .attr("class", "x-axis-label")
+  bounds.append("g")
+      .attr("class", "y-axis")
 
-  const drawHistogram = metric => {
-    const metricAccessor = d => d[metric]
-    const yAccessor = d => d.length
+  const drawLine = (dataset) => {
 
     // 4. Create scales
 
-    const xScale = d3.scaleLinear()
-      .domain(d3.extent(dataset, metricAccessor))
-      .range([0, dimensions.boundedWidth])
-      .nice()
-
-    const binsGenerator = d3.bin()
-      .domain(xScale.domain())
-      .value(metricAccessor)
-      .thresholds(12)
-
-    const bins = binsGenerator(dataset)
-
     const yScale = d3.scaleLinear()
-      .domain([0, d3.max(bins, yAccessor)])
+      .domain(d3.extent(dataset, yAccessor))
       .range([dimensions.boundedHeight, 0])
-      .nice()
+
+    const freezingTemperaturePlacement = yScale(32)
+    const freezingTemperatures = bounds.select(".freezing")
+        .attr("x", 0)
+        .attr("width", dimensions.boundedWidth)
+        .attr("y", freezingTemperaturePlacement)
+        .attr("height", dimensions.boundedHeight - freezingTemperaturePlacement)
+
+    const xScale = d3.scaleTime()
+      .domain(d3.extent(dataset, xAccessor))
+      .range([0, dimensions.boundedWidth])
 
     // 5. Draw data
 
-    const barPadding = 1
+    const lineGenerator = d3.line()
+      .x(d => xScale(xAccessor(d)))
+      .y(d => yScale(yAccessor(d)))
 
-    const updateTransition = d3
-      .transition()
-      .duration(1000)
-      .delay(1000)
-      .ease(d3.easeCubicInOut);
+    const lastTwoPoints = dataset.slice(-2);
+    const pixelsBetweenLastPoints = 
+      xScale(xAccessor(lastTwoPoints[1])) 
+      - xScale(xAccessor(lastTwoPoints[0]))
 
-    const exitTransition = d3
-      .transition()
-      .duration(1000)
-      .ease(d3.easeCubicInOut);
-
-    let binGroups = bounds.select(".bins")
-      .selectAll(".bin")
-      .data(bins)
-
-    const oldBinGroups = binGroups.exit();
-
-    oldBinGroups
-      .selectAll('rect')
-      .style('fill', 'red')
-      .transition(exitTransition)
-        .attr("height", 0)
-        .attr('y', dimensions.boundedHeight)
-
-    oldBinGroups
-      .selectAll('text')
-      .transition(exitTransition)
-        .attr("height", 0)
-        .attr('y', dimensions.boundedHeight)
-    
-    oldBinGroups.transition(exitTransition).remove()
-
-    const newBinGroups = binGroups.enter().append("g")
-        .attr("class", "bin")
-
-    newBinGroups
-      .append("rect")
-        .attr("x", d => xScale(d.x0) + barPadding)
-        .attr("width", d => d3.max([
-          0,
-          xScale(d.x1) - xScale(d.x0) - barPadding
-        ]))
-        .attr('y', dimensions.boundedHeight)
-        .attr("height", 0)
-        .style('fill', 'yellowgreen')
-
-    newBinGroups.append("text")
-        .attr("x", d => xScale(d.x0) + (xScale(d.x1) - xScale(d.x0)) / 2)
-        .attr('y', dimensions.boundedHeight)
-
-    // update binGroups to include new points
-    binGroups = newBinGroups.merge(binGroups)
-
-    const barRects = binGroups.select("rect")
-        .transition(updateTransition)
-        .attr("x", d => xScale(d.x0) + barPadding)
-        .attr("width", d => d3.max([
-          0,
-          xScale(d.x1) - xScale(d.x0) - barPadding
-        ]))
-        .attr("y", d => yScale(yAccessor(d)))
-        .attr("height", d => dimensions.boundedHeight - yScale(yAccessor(d)))
-        .style('fill', 'cornflowerblue')
-
-    const barText = binGroups.select("text")
-        .transition(updateTransition)
-        .attr("x", d => xScale(d.x0) + (xScale(d.x1) - xScale(d.x0)) / 2)
-        .attr("y", d => yScale(yAccessor(d)) - 5)
-        .text(yAccessor)
-
-    const mean = d3.mean(dataset, metricAccessor)
-
-    const meanLine = bounds.selectAll(".mean")
-        .transition(updateTransition)
-        .attr("x1", xScale(mean))
-        .attr("x2", xScale(mean))
-        .attr("y1", -20)
-        .attr("y2", dimensions.boundedHeight)
+    const line = bounds.select(".line")
+        .attr("d", lineGenerator(dataset))
+        .style('transform', `translateX(${
+          pixelsBetweenLastPoints
+        }px)`)
+        .transition()
+        .style('transform', `none`)
 
     // 6. Draw peripherals
+
+    const yAxisGenerator = d3.axisLeft()
+      .scale(yScale)
+
+    const yAxis = bounds.select(".y-axis")
+      .call(yAxisGenerator)
 
     const xAxisGenerator = d3.axisBottom()
       .scale(xScale)
 
     const xAxis = bounds.select(".x-axis")
-      .transition(updateTransition)
       .call(xAxisGenerator)
+  }
+  drawLine(dataset)
 
-    const xAxisLabel = xAxis.select(".x-axis-label")
-        .attr("x", dimensions.boundedWidth / 2)
-        .attr("y", dimensions.margin.bottom - 10)
-        .text(metric)
+  // update the line every 1.5 seconds
+  setInterval(addNewDay, 1500)
+  function addNewDay() {
+    dataset = [
+      ...dataset.slice(1),
+      generateNewDataPoint(dataset)
+    ]
+    drawLine(dataset)
   }
 
-  const metrics = [
-    "windSpeed",
-    "moonPhase",
-    "dewPoint",
-    "humidity",
-    "uvIndex",
-    "windBearing",
-    "temperatureMin",
-    "temperatureMax",
-  ]
-  let selectedMetricIndex = 0
-  drawHistogram(metrics[selectedMetricIndex])
+  function generateNewDataPoint(dataset) {
+    const lastDataPoint = dataset[dataset.length - 1]
+    const nextDay = d3.timeDay.offset(xAccessor(lastDataPoint), 1)
 
-  const button = d3.select("body")
-    .append("button")
-      .text("Change metric")
-
-  button.node().addEventListener("click", onClick)
-  function onClick() {
-    selectedMetricIndex = (selectedMetricIndex + 1) % metrics.length
-    drawHistogram(metrics[selectedMetricIndex])
+    return {
+      date: d3.timeFormat("%Y-%m-%d")(nextDay),
+      temperatureMax: yAccessor(lastDataPoint) + (Math.random() * 6 - 3),
+    }
   }
 }
-drawBars()
+drawLineChart()
