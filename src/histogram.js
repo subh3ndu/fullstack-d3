@@ -1,8 +1,8 @@
-import * as d3 from "d3";
+import * as d3 from 'd3';
 
-async function drawBars(metrics) {
+export function drawBars(dataset, metrics) {
   //#region 1. Access data
-  const dataset = await d3.json("./my_weather_data.json")
+  // const dataset = await d3.json("./my_weather_data.json")
 
   const metricAccessor = d => d[metrics]
   const yAccessor = d => d.length
@@ -15,7 +15,7 @@ async function drawBars(metrics) {
     height: width * 0.6,
     margin: {
       top: 30,
-      right: 10,
+      right: 30,
       bottom: 50,
       left: 50,
     },
@@ -29,7 +29,8 @@ async function drawBars(metrics) {
   //#endregion
 
   //#region 3. Draw canvas
-  const wrapper = d3.select("#wrapper")
+  const wrapper = d3.select('#app')
+    .style('position', 'relative')
     .append("svg")
       .attr("width", dimensions.width)
       .attr("height", dimensions.height)
@@ -81,8 +82,7 @@ async function drawBars(metrics) {
       .attr("height", d => dimensions.boundedHeight
         - yScale(yAccessor(d))
       )
-      .attr("fill", "cornflowerblue")
-
+      
   const barText = binGroups.filter(yAccessor)
     .append("text")
       .attr("x", d => xScale(d.x0) + (xScale(d.x1) - xScale(d.x0)) / 2)
@@ -129,7 +129,19 @@ async function drawBars(metrics) {
   //#endregion
 
   //#region 7. Create interactions
-  const tooltip = d3.select('#tooltip')
+  const tooltip = d3.select('#app')
+    .append('div')
+      .attr('class', 'tooltip');
+
+  tooltip
+    .append('div')
+    .attr('id', 'tooltip-header')
+    .style('margin-bottom', '0.2em')
+    .style('font-weight', '600');
+
+  tooltip
+    .append('div')
+    .attr('id', 'tooltip-body');
 
   binGroups
     .on('mouseenter', onMouseEnter)
@@ -137,13 +149,18 @@ async function drawBars(metrics) {
 
   function onMouseEnter(event, d) {
     tooltip.style('opacity', 1)
-    tooltip.select('#range').text([d.x0, d.x1].join(' - '))
-    tooltip.select('#count').text(d.length)
+    tooltip.select('#tooltip-header').text(`${metrics.charAt(0).toUpperCase() + metrics.slice(1)}: ${[d.x0, d.x1].join(' - ')}`)
+    tooltip.select('#tooltip-body').text(`${d.length} days`)
 
     const x = xScale(d.x0) + barPadding * 2 
-    + (xScale(d.x1) - xScale(d.x0)) / 2 
-    + dimensions.margin.left;
-    const y = yScale(yAccessor(d)) + dimensions.margin.top;
+      + (xScale(d.x1) - xScale(d.x0)) / 2 
+      + dimensions.margin.left;
+    const y = yScale(yAccessor(d)) 
+      + dimensions.margin.top;
+
+    const p = xScale(d.x0) + barPadding * 2
+      + (xScale(d.x1) - xScale(d.x0)) / 2
+    
 
     tooltip.style('transform', `translate(
       calc(-50% + ${x}px),
@@ -157,5 +174,3 @@ async function drawBars(metrics) {
 
   //#endregion
 }
-
-drawBars('humidity');
