@@ -1,14 +1,16 @@
 import * as d3 from 'd3';
 
 export function drawLine(data) {
-  // Data & Accessors
+  //#region 1. Data & Accessors
   // const data = await d3.json('/my_weather_data.json');
 
   const parseDate = d3.timeParse('%Y-%m-%d');
   const yAccessor = d => d['temperatureMax'];
   const xAccessor = d => parseDate(d['date']);
 
-  // Create Chart Dimensions
+  //#endregion
+
+  //#region 2. Create Chart Dimensions
   let dimensions = {
     width: window.innerWidth * 0.9,
     height: 400,
@@ -35,8 +37,9 @@ export function drawLine(data) {
       }px, ${
         dimensions.margins.top
       }px)`);
+  //#endregion
 
-  // Create Scales
+  //#region 3. Create Scales
   const yScale = d3.scaleLinear()
     .domain(d3.extent(data, yAccessor))
     .range([dimensions.boundedHeight, 0]);
@@ -53,8 +56,9 @@ export function drawLine(data) {
   const xScale = d3.scaleTime()
     .domain(d3.extent(data, xAccessor))
     .range([0, dimensions.boundedWidth]);
+  //#endregion
 
-  // Draw data
+  //#region 4. Draw data
   const lineGenerator = d3.line()
     .x(d => xScale(xAccessor(d)))
     .y(d => yScale(yAccessor(d)));
@@ -65,8 +69,9 @@ export function drawLine(data) {
     // .attr('stroke', '#af9358')
     .attr('stroke', 'dodgerblue')
     .attr('stroke-width', 2)
+  //#endregion
 
-  // Draw Peripherals
+  //#region 5. Draw Peripherals
   const yAxisGenerator = d3.axisLeft().scale(yScale);
   const xAxisGenerator = d3.axisBottom().scale(xScale);
   
@@ -75,4 +80,5 @@ export function drawLine(data) {
     .append('g')
     .style('transform', `translateY(${dimensions.boundedHeight}px)`)
     .call(xAxisGenerator);
+  //#endregion
 }

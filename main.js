@@ -4,3 +4,5 @@ import { drawLine } from "./src/linechart";
 import { drawScatter } from "./src/scatterplot";
 
 const data = await getWeatherDataAsync();
+
+drawScatter(data)
